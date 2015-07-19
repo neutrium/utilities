@@ -1,5 +1,9 @@
 /*
-	NeutriumJS.utilities.nestedMap
+//	NeutriumJS.utilities.nestedMap
+//	
+//	A collection object for storing nested maps
+//	
+//	Original implementation from https://github.com/gentooboontoo/js-quantities/
 */
 
 (function (root, factory) {
