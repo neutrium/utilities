@@ -6,27 +6,31 @@ NeutriumJS.utilities is a collection of general purpose utility objects for use 
 
 ## Getting Started
 
-### Adding NeutriumJS
+### Installing
 
-#### Bower.io
+The utilities module can be installed using npm as follows:
 
-You can install NeutriumJS.utilities using bower.
+    npm install --save "@neutriumjs/utilities"
 
-	bower install neutriumjs-utilities
+#### Typescript
 
-### Standalone
+You can include the module using an import statement in typescript:
 
-If your project is not using bower you can use the compiled and minified source which is found at:
+    import {NestedMap} from "@neutriumjs/utilities"
 
-	dist/NeutriumJS.utilities.min.js
+    var map = new NestedMap();
 
-## Including the library
+This module is built with the declaration files so type hinting should work once the module has been imported.
 
-The NeutriumJS.Utilities module can be included into your page using the following:
+#### Node
 
-	<script charset="utf-8" src="NeutriumJS.utilities.min.js"></script>
+    var utilities = require("@neutriumjs/utilities");
 
-As this module grows you may decide that you only want to include specific objects for the sake of site speed. This can be done by selectively including the source files found in /src. Please note however that the files in /src should be concatanated and minified with the rest of you javascript source.
+    var map = new utilities.NestedMap();
+
+#### Browsers
+
+Since version 2.0.0 NeutriumJS.utilitites has been converted to a commonjs (node) package. To use it in a browser environment you will need to use a tool like [browserify](http://browserify.org) to convert it to a web bunble and expose the Quantity object.
 
 ## Donations
 
@@ -37,7 +41,8 @@ NeutriumJS is free software, but you can support the developers by [donating her
 | Version | Notes |
 |:-------:|:------|
 | 1.0.0	  | Initial Release |
+| 2.0.0   | Rename package, switch to Typescript and convert to npm module |
 
-## License 
+## License
 
 [Creative Commons Attribution 4.0 International](http://creativecommons.org/licenses/by/4.0/legalcode)
