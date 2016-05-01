@@ -1,5 +1,5 @@
 {
-  "name": "@neutriumjs/utilities",
+  "name": "@neutrium/utilities",
   "version": "2.0.0",
   "main": "dist/index.js",
   "typings": "dist/index",
@@ -20,10 +20,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/NativeDynamics/NeutriumJS.utilities.git"
+    "url": "https://github.com/neutrium/utilities.git"
   },
   "bugs": {
-    "url" : "https://github.com/NativeDynamics/NeutriumJS.utilities/issues"
+    "url" : "https://github.com/neutrium/utilities/issues"
   },
   "scripts": {
       "clean": "rm -r ./dist/*",
