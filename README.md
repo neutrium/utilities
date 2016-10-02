@@ -10,13 +10,13 @@ NeutriumJS.utilities is a collection of general purpose utility objects for use 
 
 The utilities module can be installed using npm as follows:
 
-    npm install --save "@neutriumjs/utilities"
+    npm install --save "@neutrium/utilities"
 
 #### Typescript
 
 You can include the module using an import statement in typescript:
 
-    import {NestedMap} from "@neutriumjs/utilities"
+    import {NestedMap} from "@neutrium/utilities"
 
     var map = new NestedMap();
 
@@ -24,7 +24,7 @@ This module is built with the declaration files so type hinting should work once
 
 #### Node
 
-    var utilities = require("@neutriumjs/utilities");
+    var utilities = require("@neutrium/utilities");
 
     var map = new utilities.NestedMap();
 

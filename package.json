@@ -9,11 +9,7 @@
       "utilities"
   ],
   "license": "CC-BY-4.0",
-  "author:": {
-    "name": "Trevor Walker",
-    "company": "Native Dynamics",
-    "url" : "https://neutrium.net"
-  },
+  "author:": "Trevor Walker <trevorw@neutrium.net> (https://neutrium.net)",
   "private": false,
   "engines": {
     "node": ">=0.10.0"
