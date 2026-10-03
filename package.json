@@ -1,30 +1,171 @@
 {
-  "name": "@neutrium/utilities",
-  "version": "2.0.0",
-  "main": "dist/index.js",
-  "typings": "dist/index",
-  "description": "A collection of general purpose utility objects for the NeutriumJS library.",
-  "keywords": [
-      "neutrium",
-      "utilities"
-  ],
-  "license": "CC-BY-4.0",
-  "author:": "Trevor Walker <trevorw@neutrium.net> (https://neutrium.net)",
-  "private": false,
-  "engines": {
-    "node": ">=0.10.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/neutrium/utilities.git"
-  },
-  "bugs": {
-    "url" : "https://github.com/neutrium/utilities/issues"
-  },
-  "scripts": {
-      "clean": "rm -r ./dist/*",
-      "tsc": "tsc",
-      "build": "npm run tsc",
-      "prepublish": "npm run clean && npm run build"
-  }
+	"name": "@neutrium/utilities",
+	"version": "3.0.0",
+	"type": "module",
+	"sideEffects": false,
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+		"import": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+		},
+		"./cache": {
+		"import": {
+			"types": "./dist/cache/index.d.ts",
+			"default": "./dist/cache/index.js"
+		}
+		},
+		"./validation": {
+		"import": {
+			"types": "./dist/validation/index.d.ts",
+			"default": "./dist/validation/index.js"
+		}
+		},
+		"./configuration": {
+		"import": {
+			"types": "./dist/configuration/index.d.ts",
+			"default": "./dist/configuration/index.js"
+		}
+		},
+		"./integer": {
+		"import": {
+			"types": "./dist/integer/index.d.ts",
+			"default": "./dist/integer/index.js"
+		}
+		},
+		"./numeric": {
+		"import": {
+			"types": "./dist/numeric/index.d.ts",
+			"default": "./dist/numeric/index.js"
+		}
+		},
+		"./numeric/core": {
+		"import": {
+			"types": "./dist/numeric/adapters/NumericAdapter.d.ts",
+			"default": "./dist/numeric/adapters/NumericAdapter.js"
+		}
+		},
+		"./numeric/arithmetic": {
+		"import": {
+			"types": "./dist/numeric/adapters/ArithmeticAdapter.d.ts",
+			"default": "./dist/numeric/adapters/ArithmeticAdapter.js"
+		}
+		},
+		"./numeric/scientific": {
+		"import": {
+			"types": "./dist/numeric/adapters/ScientificAdapter.d.ts",
+			"default": "./dist/numeric/adapters/ScientificAdapter.js"
+		}
+		},
+		"./decimal": {
+		"import": {
+			"types": "./dist/decimal/index.d.ts",
+			"default": "./dist/decimal/index.js"
+		}
+		},
+		"./decimal/core": {
+		"import": {
+			"types": "./dist/decimal/DecimalCoreAdapter.d.ts",
+			"default": "./dist/decimal/DecimalCoreAdapter.js"
+		}
+		},
+		"./decimal/arithmetic": {
+		"import": {
+			"types": "./dist/decimal/DecimalArithmeticAdapter.d.ts",
+			"default": "./dist/decimal/DecimalArithmeticAdapter.js"
+		}
+		},
+		"./decimal/scientific": {
+		"import": {
+			"types": "./dist/decimal/DecimalScientificAdapter.d.ts",
+			"default": "./dist/decimal/DecimalScientificAdapter.js"
+		}
+		},
+		"./async": {
+		"import": {
+			"types": "./dist/async/index.d.ts",
+			"default": "./dist/async/index.js"
+		}
+		},
+		"./number": {
+		"import": {
+			"types": "./dist/numeric/number.d.ts",
+			"default": "./dist/numeric/number.js"
+		}
+		},
+		"./float": {
+		"import": {
+			"types": "./dist/numeric/float.d.ts",
+			"default": "./dist/numeric/float.js"
+		}
+		},
+		"./immutable": {
+		"import": {
+			"types": "./dist/immutable/index.d.ts",
+			"default": "./dist/immutable/index.js"
+		}
+		}
+	},
+	"files": [
+		"dist",
+		"src/**/*.ts",
+		"guides/*.md",
+		"!src/**/tests/**",
+		"README.md",
+		"LICENCE"
+	],
+	"packageManager": "pnpm@11.5.0",
+	"description": "A collection of general purpose utility objects for the NeutriumJS library.",
+	"keywords": [
+		"neutrium",
+		"utilities"
+	],
+	"license": "MIT",
+	"author": "Trevor Walker <trevorw@neutrium.net> (https://neutrium.net)",
+	"private": false,
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/neutrium/utilities.git"
+	},
+	"bugs": {
+		"url": "https://github.com/neutrium/utilities/issues"
+	},
+	"homepage": "https://neutrium.github.io/utilities/",
+	"scripts": {
+		"clean": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
+		"tsc": "tsc",
+		"build": "pnpm run clean && pnpm run tsc",
+		"typecheck": "tsc --noEmit",
+		"docs": "typedoc",
+		"docs:dev": "pnpm run docs && vite preview --config tools/docs.vite.config.mjs",
+		"test": "pnpm run build && pnpm run test:built",
+		"test:built": "vitest run",
+		"test:package": "pnpm run build && pnpm run test:package:built",
+		"test:package:built": "node tools/test-package.mjs",
+		"verify": "pnpm test && pnpm run test:package:built && pnpm run docs",
+		"prepack": "pnpm run build",
+		"prepublishOnly": "pnpm run verify",
+		"test:types": "pnpm run build && vitest run --typecheck.only"
+	},
+	"devDependencies": {
+		"@neutrium/decimal": "2.2.0",
+		"@types/node": "^24.19.0",
+		"typedoc": "^0.28.20",
+		"typescript": "6.0.3",
+		"vite": "^8.3.2",
+		"vitest": "5.0.3"
+	},
+	"peerDependencies": {
+		"@neutrium/decimal": "^2.2.0"
+	},
+	"peerDependenciesMeta": {
+		"@neutrium/decimal": {
+			"optional": true
+		}
+	}
 }

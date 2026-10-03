@@ -1,13 +1,30 @@
 {
-    "compilerOptions": {
-        "module": "commonjs",
-        "target": "es5",
-        "noImplicitAny": false,
-        "sourceMap": false,
-        "declaration": true,
-        "outDir": "dist/"
-    },
-    "files": [
-        "./src/index.ts"
-    ]
+	"compilerOptions": {
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"target": "ES2022",
+		"lib": [
+			"ES2022"
+		],
+		"strict": true,
+		"noEmitOnError": true,
+		"verbatimModuleSyntax": true,
+		"sourceMap": false,
+		"declaration": true,
+		"rootDir": "src",
+		"outDir": "dist/"
+	},
+	"files": [
+		"./src/index.ts",
+		"./src/numeric/index.ts",
+		"./src/numeric/adapters/NumericAdapter.ts",
+		"./src/numeric/adapters/ArithmeticAdapter.ts",
+		"./src/numeric/adapters/ScientificAdapter.ts",
+		"./src/decimal/index.ts",
+		"./src/decimal/DecimalCoreAdapter.ts",
+		"./src/decimal/DecimalArithmeticAdapter.ts",
+		"./src/decimal/DecimalScientificAdapter.ts",
+		"./src/numeric/number.ts",
+		"./src/numeric/float.ts"
+	]
 }

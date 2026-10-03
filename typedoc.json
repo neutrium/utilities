@@ -1,0 +1,39 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "./src/index.ts",
+    "./src/cache/index.ts",
+    "./src/validation/index.ts",
+    "./src/configuration/index.ts",
+    "./src/integer/index.ts",
+    "./src/numeric/index.ts",
+    "./src/decimal/DecimalCoreAdapter.ts",
+    "./src/decimal/DecimalArithmeticAdapter.ts",
+    "./src/decimal/DecimalScientificAdapter.ts",
+    "./src/async/index.ts",
+    "./src/numeric/number.ts",
+    "./src/numeric/float.ts",
+    "./src/immutable/index.ts"
+  ],
+  "projectDocuments": [
+    "./guides/*.md"
+  ],
+  "tsconfig": "./tsconfig.json",
+  "out": "./docs",
+  "name": "@neutrium/utilities",
+  "includeVersion": true,
+  "readme": "./README.md",
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "validation": {
+    "notDocumented": true,
+    "invalidLink": true
+  },
+  "treatWarningsAsErrors": true,
+  "cleanOutputDir": true,
+  "navigationLinks": {
+    "GitHub": "https://github.com/neutrium/utilities",
+    "Neutrium": "https://neutrium.net"
+  }
+}
