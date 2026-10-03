@@ -1,6 +1,6 @@
 {
 	"name": "@neutrium/utilities",
-	"version": "3.0.0",
+	"version": "3.1.0",
 	"type": "module",
 	"sideEffects": false,
 	"types": "./dist/index.d.ts",
