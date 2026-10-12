@@ -13,6 +13,7 @@ Import from `@neutrium/utilities/cache` or the package root.
 | `LruCache<K, V>(maxEntries = 1024)` | Bound a cache by entry count. |
 | `WeightedLruCache<K, V>({ maxEntries?, maxWeight, weigh })` | Bound by both entry count and application-defined weight. |
 | `BudgetCache<V>(config, policy)` | String-keyed retention with estimated byte accounting and optional admission/copy hooks. |
+| `GenerationalWeakCache<K, V>(generationSize = 1024)` | Two bounded generations of weak object keys, with promotion on reads. |
 | `WeakCacheRegistry<K extends object, V>(create)` | Lazily associate values with a configuration, constructor or other object identity. |
 
 `LruCache` also accepts the weighted options object. `WeightedLruCache` names that use explicitly and requires a weight limit and measurement callback.
@@ -60,6 +61,7 @@ const plans = new BudgetCache<Plan>(cacheConfig({
 }), {
     accept: key => key.length <= 4096,
     measure: plan => 64 + plan.tokens.reduce((bytes, token) => bytes + 32 + 2 * token.length, 0),
+    detachKey: key => JSON.parse(JSON.stringify(key)),
     detach: plan => ({ tokens: [...plan.tokens] }),
 });
 
@@ -69,14 +71,42 @@ plans.stats.estimatedBytes;
 
 Cost is `entryOverheadBytes + 2 * key.length + measure(value)`. The default entry overhead is 256 bytes; override it in the policy when appropriate. `maxBytes` defaults to 4 MiB and `maxEntries` defaults to 1024. These are **estimates**, not guarantees about JavaScript heap usage, backing strings, shared buffers, or garbage collection. Provide domain-specific payload measurements in the consuming library.
 
-Admission order is: disabled check, `accept`, key cost check, `measure`, total cost check, `detach`, then insertion/eviction. Rejected entries never invoke `detach`. The detached value must have the measured size. Strings and keys receive no engine-specific backing-store detachment guarantee. The example copies the token
-array but does not promise to copy the strings' backing storage.
+Admission order is: disabled check, `accept`, key cost check, `measure`, total cost check, `detachKey`, `detach`, then insertion/eviction. Rejected entries never invoke either copy callback. `detachKey` must return a primitive string equal to the input; it cannot normalize keys. A changed key or a thrown callback leaves entries, accounting and recency unchanged. The detached value must have the measured size. Strings and keys receive no engine-specific backing-store detachment guarantee. The example copies the token array but does not promise to copy the strings' backing storage.
 
 Storage is allocated on first admission and released by `clear`. If the owner wants an optional cache, `BudgetCache.create(config, policy)` returns `undefined` when either validated limit is zero. Construction still validates the policy.
 
 Policies may be objects or class instances with inherited methods. Callback references and entry overhead are captured at construction. Callbacks run with the original policy as `this`, including access to private fields; policy state remains shared and mutable. Replacing a callback later does not change the cache's captured callback.
 
-`cacheConfig(input?, parent?)` validates, copies and freezes limits. Undefined fields inherit the parent's limits (or `DEFAULT_CACHE_CONFIG`); unknown own keys, including symbols, are rejected. Configuration uses the shared `resolveConfig` helper; inputs must be plain records with data properties. Accessors and class instances are rejected. `BudgetCacheStats` exposes `entries`, `estimatedBytes`, `maxEntries`, and `maxBytes`; the cache's `weight` property is its estimated byte count.
+`cacheConfig(input?, parent?, options?)` validates, copies and freezes limits. Undefined fields inherit the parent's limits (or `DEFAULT_CACHE_CONFIG`); unknown own keys, including symbols, are rejected. Configuration uses the shared `resolveConfig` helper; inputs must be plain records with data properties. Accessors and class instances are rejected. `BudgetCacheStats` exposes `entries`, `estimatedBytes`, `maxEntries`, and `maxBytes`; the cache's `weight` property is its estimated byte count.
+
+Pass `{ name: 'cache.parser' }` as the third argument to label record, unknown-option and limit-validation errors. With no options, each call still produces a fresh snapshot.
+
+Opt into identity reuse with `{ reuse: true }`. An omitted input returns the validated parent; an input previously produced by `cacheConfig` returns that same snapshot. `DEFAULT_CACHE_CONFIG` is also recognized. Arbitrary frozen objects and unknown parents are validated and copied before use. Explicit partial overrides, including `{}` and unchanged limits, create distinct snapshots so independent cache scopes are not merged by value. `BudgetCache` uses this reuse mode internally to avoid copying a validated configuration again.
+
+```ts
+const parent = cacheConfig({ maxEntries: 256 });
+const inherited = cacheConfig(undefined, parent, { name: 'cache.parser', reuse: true });
+inherited === parent; // true
+const independent = cacheConfig({}, parent, { reuse: true });
+independent === parent; // false
+```
+
+## Generational weak retention
+
+Use `GenerationalWeakCache<K, V>` when immutable objects are keys and stale entries should age out even while their keys remain alive. It keeps a current and previous `WeakMap`. A new entry rotates a full current generation into the previous slot, dropping the oldest generation. `get` promotes a previous-generation hit into the current generation; `peek` and `has` do not promote.
+
+```ts
+import { GenerationalWeakCache } from '@neutrium/utilities/cache';
+
+const terms = new GenerationalWeakCache<object, bigint>(1024);
+const scalar = Object.freeze({ digits: '125' });
+terms.set(scalar, 125n);
+terms.get(scalar); // 125n; promotes if found in the previous generation
+```
+
+Capacity is a nonnegative safe integer and defaults to 1024 admissions per generation; zero disables retention. Updating a current entry does not consume a slot. Promotions do consume slots. Deleting entries or garbage collection does not replenish slots, so churn still triggers rotation. `clear` releases both generations and resets the admission counter. This is not an LRU and does not guarantee that an entry survives a specific number of subsequent reads or writes.
+
+`set` returns the cache; `trySet` returns false only when retention is disabled. Keys must be objects or functions. Invalid insertion keys throw before changing cache state; invalid lookup or deletion keys behave as missing. Values, including `undefined`, are retained by reference. Use `has` to distinguish a cached `undefined` from a miss. No enumeration, live size, byte accounting, or deterministic garbage-collection timing is exposed. Keep value admission rules and domain-specific size estimates in the consumer.
 
 ## Weak identity scopes
 
@@ -101,9 +131,9 @@ There is no size, enumeration or guarantee of when entries will be garbage-colle
 
 For decimal constants, cache the template by constructor identity and keep cloning it before exposing it to callers. The registry does not clone cached values.
 
-## Migrating Neutrium consumers
+## Migrating
 
 - Quantity LRU: use `new WeightedLruCache({ maxEntries, maxWeight, weigh })` in place   of its two-argument weighted constructor. Invalid limits now throw. Rejected replacements preserve existing entries.
 - Formatter LRU: `set` now returns the cache, not the value. Store a constructed formatter in a local variable if it must also be returned. Zero capacity disables retention rather than throwing.
-- Quantity BudgetCache: use `trySet` where the old boolean `set` result is needed. Keep unit-specific measurements and text ownership policies in quantity.
+- Quantity BudgetCache: use `trySet` where the old boolean `set` result is needed. Import the shared class directly and supply `detachKey` for key ownership copies. Keep unit-specific measurements and payload ownership policies in quantity.
 - Quantity WeakCacheRegistry: the existing `get` / `clear` pattern is supported; `peek`, `has`, and `delete` add targeted inspection and invalidation.

@@ -13,6 +13,8 @@ export interface ArithmeticAdapter<T> extends NumericAdapter<T>
 	mul(a: T, b: T): T;
 	/** Quotient using backend precision and rounding. */
 	div(a: T, b: T): T;
+	/** Raise to a finite integer Number exponent without rounding the exponent into the scalar format. Fractional/nonfinite exponents throw RangeError; Decimal additionally requires a safe integer. */
+	powInteger(value: T, exponent: number): T;
 	/** Remainder using backend semantics; Decimal uses its modulo setting. */
 	rem(a: T, b: T): T;
 	/** Negation, preserving signed-zero semantics. */

@@ -1,64 +1,162 @@
 import { mergeDefined } from '../configuration/index.js';
-import { Decimal, type DecimalConstructor, type DecimalConfig, type DecimalConfigInput } from '@neutrium/decimal/scientific';
+import { Decimal, type DecimalConfigInput } from '@neutrium/decimal/scientific';
 import type { ScientificAdapter } from '../numeric/adapters/ScientificAdapter.js';
-import { decimalContext } from './context.js';
+import { DecimalArithmeticAdapter } from './DecimalArithmeticAdapter.js';
 import { literal } from '../numeric/literal.js';
 
-/** Immutable Decimal scientific context, with tier-preserving configuration. */
-export interface DecimalScientificAdapter extends ScientificAdapter<Decimal>
+/** Isolated Decimal scientific context, inheriting core and arithmetic operations. */
+export class DecimalScientificAdapter extends DecimalArithmeticAdapter<typeof Decimal, 'scientific'> implements ScientificAdapter<Decimal>
 {
-	/** Frozen Decimal settings captured when the adapter is created. */
-	readonly config: Readonly<DecimalConfig>;
-	/** Create an independent context in this tier; never modifies this adapter. */
-	withConfig(options: DecimalConfigInput): DecimalScientificAdapter;
+	/** Capture current scientific defaults and apply isolated overrides. */
+	constructor(options: DecimalConfigInput = {})
+	{
+		super(options, Decimal, 'scientific');
+	}
+
+	/** Create an independent scientific adapter with updated settings. */
+	override withConfig(options: DecimalConfigInput): DecimalScientificAdapter
+	{
+		const adapter = new DecimalScientificAdapter(mergeDefined(this.config, options));
+		Object.freeze(adapter);
+		return adapter;
+	}
+
+	/** Decimal sqrt operation using this context's settings. */
+	sqrt(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).sqrt());
+	}
+
+	/** Decimal cbrt operation using this context's settings. */
+	cbrt(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).cbrt());
+	}
+
+	/** Decimal exp operation using this context's settings. */
+	exp(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).exp());
+	}
+
+	/** Decimal ln operation using this context's settings. */
+	ln(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).ln());
+	}
+
+	/** Decimal sin operation using this context's settings. */
+	sin(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).sin());
+	}
+
+	/** Decimal cos operation using this context's settings. */
+	cos(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).cos());
+	}
+
+	/** Decimal tan operation using this context's settings. */
+	tan(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).tan());
+	}
+
+	/** Decimal asin operation using this context's settings. */
+	asin(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).asin());
+	}
+
+	/** Decimal acos operation using this context's settings. */
+	acos(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).acos());
+	}
+
+	/** Decimal atan operation using this context's settings. */
+	atan(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).atan());
+	}
+
+	/** Decimal sinh operation using this context's settings. */
+	sinh(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).sinh());
+	}
+
+	/** Decimal cosh operation using this context's settings. */
+	cosh(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).cosh());
+	}
+
+	/** Decimal tanh operation using this context's settings. */
+	tanh(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).tanh());
+	}
+
+	/** Decimal asinh operation using this context's settings. */
+	asinh(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).asinh());
+	}
+
+	/** Decimal acosh operation using this context's settings. */
+	acosh(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).acosh());
+	}
+
+	/** Decimal atanh operation using this context's settings. */
+	atanh(value: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).atanh());
+	}
+
+	/** Raise a scalar to an exponent, preserving its original literal. */
+	pow(value: Decimal, exponent: string | number | bigint | Decimal): Decimal
+	{
+		const { core, operand, result } = this.context;
+		return result(operand(value).pow(core.isValue(exponent) ? exponent : literal(exponent)));
+	}
+
+	/** Logarithm to the supplied base. */
+	log(value: Decimal, base: Decimal): Decimal
+	{
+		const { operand, result } = this.context;
+		return result(operand(value).log(operand(base)));
+	}
+
+	/** Two-argument arctangent in radians. */
+	atan2(y: Decimal, x: Decimal): Decimal
+	{
+		const { operand, result, Work } = this.context;
+		return result(Work.atan2(operand(y), operand(x)));
+	}
+
+	/** Pi at this context's precision. */
+	pi(): Decimal
+	{
+		return this.context.result(this.context.Work.PI);
+	}
 }
-
-/** Create an isolated scientific Decimal adapter from current tier defaults and overrides. */
-export function createDecimalAdapter(options: DecimalConfigInput = {}): DecimalScientificAdapter
-{
-	return create(Decimal, options);
-}
-
-function create(Source: DecimalConstructor, options: DecimalConfigInput): DecimalScientificAdapter
-{
-	const { core, operand, result, Output, Work } = decimalContext(Source, options);
-
-	return Object.freeze({
-		...core, tier: 'scientific', config: Output.config,
-		withConfig: (updates: DecimalConfigInput) => create(Decimal, mergeDefined(Output.config, updates)),
-		add: (a: Decimal, b: Decimal) => result(operand(a).add(operand(b))),
-		sub: (a: Decimal, b: Decimal) => result(operand(a).sub(operand(b))),
-		mul: (a: Decimal, b: Decimal) => result(operand(a).mul(operand(b))),
-		div: (a: Decimal, b: Decimal) => result(operand(a).div(operand(b))),
-		rem: (a: Decimal, b: Decimal) => result(operand(a).mod(operand(b))),
-		neg: (value: Decimal) => result(operand(value).neg()),
-		abs: (value: Decimal) => result(operand(value).abs()),
-		floor: (value: Decimal) => result(operand(value).floor()),
-		ceil: (value: Decimal) => result(operand(value).ceil()),
-		trunc: (value: Decimal) => result(operand(value).trunc()),
-		round: (value: Decimal) => result(operand(value).round()),
-		pow: (value: Decimal, exponent: string | number | bigint | Decimal) => result(operand(value).pow(core.isValue(exponent) ? exponent : literal(exponent))),
-		sqrt: (value: Decimal) => result(operand(value).sqrt()),
-		cbrt: (value: Decimal) => result(operand(value).cbrt()),
-		exp: (value: Decimal) => result(operand(value).exp()),
-		ln: (value: Decimal) => result(operand(value).ln()),
-		sin: (value: Decimal) => result(operand(value).sin()),
-		cos: (value: Decimal) => result(operand(value).cos()),
-		tan: (value: Decimal) => result(operand(value).tan()),
-		asin: (value: Decimal) => result(operand(value).asin()),
-		acos: (value: Decimal) => result(operand(value).acos()),
-		atan: (value: Decimal) => result(operand(value).atan()),
-		sinh: (value: Decimal) => result(operand(value).sinh()),
-		cosh: (value: Decimal) => result(operand(value).cosh()),
-		tanh: (value: Decimal) => result(operand(value).tanh()),
-		asinh: (value: Decimal) => result(operand(value).asinh()),
-		acosh: (value: Decimal) => result(operand(value).acosh()),
-		atanh: (value: Decimal) => result(operand(value).atanh()),
-		log: (value: Decimal, base: Decimal) => result(operand(value).log(operand(base))),
-		atan2: (y: Decimal, x: Decimal) => result(Work.atan2(operand(y), operand(x))),
-		pi: () => result(Work.PI),
-	});
-}
-
-/** Default isolated scientific Decimal adapter. */
-export const DecimalAdapter = createDecimalAdapter();

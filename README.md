@@ -2,6 +2,8 @@
 
 A collection of general purpose utility objects for use throughout the neutrium ecosystem of libraries.
 
+[API reference](https://neutrium.github.io/utilities/)
+
 ## Installation
 
 The utilities module can be installed using npm as follows:
@@ -22,6 +24,10 @@ assertPositiveSafeInteger(capacity, 'capacity');
 const cache = new LruCache<string, number>(capacity);
 cache.set('example', 42);
 ```
+
+## Upgrading to 4.0
+
+Version 4 changes the public numeric adapter contract. See the [migration guide](./guides/migrating-v4.md) before upgrading from 3.x.
 
 ## Development
 

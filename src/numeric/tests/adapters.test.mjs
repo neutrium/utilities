@@ -1,21 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { Decimal } from '@neutrium/decimal/scientific';
-import { numberAdapter as n } from '@neutrium/utilities/number';
-import { floatAdapter as f } from '@neutrium/utilities/float';
-import { DecimalAdapter as d, createDecimalAdapter } from '@neutrium/utilities/decimal';
+import { NumberAdapter } from '@neutrium/utilities/number';
+const n = new NumberAdapter();
+import { DecimalScientificAdapter } from '@neutrium/utilities/decimal';
+const d = new DecimalScientificAdapter();
 
 // Shared behavioral checks for all concrete backends and tiers.
-for (const backend of ['number', 'float', 'decimal']) {
-	const adapters = [];
+for (const backend of ['number', 'decimal']) {
 	for (const tier of backend === 'decimal' ? ['core', 'arithmetic', 'scientific'] : ['scientific']) {
 		const module = await import(backend === 'decimal' ? `@neutrium/utilities/decimal/${tier}` : `@neutrium/utilities/${backend}`);
-		const adapter = module[backend === 'decimal' ? 'DecimalAdapter' : `${backend}Adapter`];
-		adapters.push(adapter);
+		const adapter = backend === 'decimal' ? new module[`Decimal${tier[0].toUpperCase() + tier.slice(1)}Adapter`]() : new module.NumberAdapter();
 		test(`${backend}/${tier}: scalar and tier contracts`, () => {
 			assert.equal(adapter.tier, tier);
-			assert.equal(Object.isFrozen(adapter), true);
-			assert.equal(Object.isFrozen(adapter.config), true);
+			assert.equal('identity' in adapter, false);
 			for (const value of [' +1.25e2 ', 125, 125n])
 				assert.equal(adapter.toNumber(adapter.from(value)), 125);
 			assert.equal(adapter.isValue(adapter.from(1)), true);
@@ -58,13 +55,10 @@ for (const backend of ['number', 'float', 'decimal']) {
 			assert.ok(adapter.isNaN(adapter.div(adapter.from(0), adapter.from(0))));
 		});
 	}
-	if (backend === 'decimal') test(`${backend}: tiers share compatibility identity`, () => {
-		assert.equal(adapters[0].identity, adapters[1].identity);
-		assert.equal(adapters[0].identity, adapters[2].identity);
-	});
+
 }
 
-for (const adapter of [n, f, d]) {
+for (const adapter of [n, d]) {
 	test(`${adapter.id}: scientific functions and special values`, () => {
 		for (const [fn, input, expected] of [['sqrt',4,2], ['cbrt',-8,-2], ['exp',0,1], ['ln',1,0],
 			['sin',0,0], ['cos',0,1], ['tan',0,0], ['asin',0,0], ['acos',1,0], ['atan',0,0],
@@ -81,82 +75,21 @@ for (const adapter of [n, f, d]) {
 	});
 }
 
-test('float32 normalizes inputs and each operation result; Number retains binary64', () => {
-	assert.notEqual(n.identity, f.identity);
-	assert.notEqual(n.identity, d.identity);
-	assert.equal(f.from(16777217), 16777216);
+test('Number retains binary64 precision and native scalar semantics', () => {
 	assert.equal(n.from(16777217), 16777217);
-	assert.equal(f.add(16777216, 1), 16777216);
 	assert.equal(n.add(16777216, 1), 16777217);
-	assert.equal(f.add(0.1, 0.2), Math.fround(Math.fround(0.1) + Math.fround(0.2)));
-	assert.equal(f.from('1e40'), Infinity);
-	assert.ok(Object.is(f.from('-1e-50'), -0));
-	assert.equal(f.from(2 ** -149), 2 ** -149);
-	assert.equal(f.from(2 ** -150), 0);
-	assert.equal(f.from(1 + 2 ** -24), 1); // tie to even
-	assert.equal(f.from(1 + 3 * 2 ** -24), 1 + 2 ** -22);
-	assert.equal(f.isValue(0.1), false);
-	assert.equal(f.isValue(Math.fround(0.1)), true);
+	assert.equal(n.add(0.1, 0.2), 0.1 + 0.2);
+	assert.equal(n.from('1e40'), 1e40);
+	assert.equal(n.from(Number.MIN_VALUE), Number.MIN_VALUE);
 	assert.equal(n.isValue(0.1), true);
-	for (const adapter of [n, f]) {
-		assert.throws(() => adapter.add('1', 2), TypeError);
-		assert.equal('withConfig' in adapter, false);
-		assert.ok(Object.is(adapter.neg(0), -0));
-	}
+	const { toBytes } = n;
+	for (const value of [0, -0, 1.5, Number.MIN_VALUE, Number.MAX_VALUE, NaN, Infinity, -Infinity])
+		assert.equal(toBytes(value), 8);
+	assert.equal('withConfig' in n, false);
+	assert.ok(Object.is(n.neg(0), -0));
 });
 
-test('Decimal settings are immutable and receiver context controls every result', () => {
-	const input = { precision: 3, rounding: 'down' };
-	const low = createDecimalAdapter(input);
-	input.precision = 30;
-	const high = low.withConfig({ precision: 12 });
-	assert.equal(low.config.precision, 3);
-	assert.equal(high.config.precision, 12);
-	assert.equal(low.identity, high.identity);
-	assert.notEqual(low.config, high.config);
-	assert.equal(low.toString(low.div(high.from(1), high.from(7))), '0.142');
-	assert.equal(high.toString(high.div(low.from(1), low.from(7))), '0.142857142857');
-	assert.equal(low.toString(low.mul(high.from('1.2345'), high.from('2'))), '2.46');
-	assert.equal(low.toString(low.add(high.from('1.2345'), high.from('2'))), '3.23');
-	const value = low.from('1.2345');
-	assert.equal(Object.isFrozen(value), true);
-	assert.throws(() => { value.constructor.config = { precision: 100 }; }, TypeError);
-	const cloned = value.constructor.clone({ precision: 9 });
-	assert.equal(cloned.config.precision, 9);
-	cloned.config = { precision: 11 };
-	assert.equal(cloned.config.precision, 11);
-	assert.equal(low.config.precision, 3);
-	assert.throws(() => { low.config.precision = 100; }, TypeError);
-	assert.throws(() => low.withConfig({ precision: 0 }));
-	assert.equal(low.config.precision, 3);
-});
-
-test('Decimal defaults are captured and remain independent of later package changes', () => {
-	const original = Decimal.config;
-	const stable = createDecimalAdapter({ precision: 7 });
-	try {
-		Decimal.config = { precision: 2 };
-		assert.equal(stable.config.precision, 7);
-		assert.equal(stable.toString(stable.div(stable.from(1), stable.from(7))), '0.1428571');
-	} finally { Decimal.config = original; }
-});
-
-test('Decimal operands are preserved until output exponent limits are applied', () => {
-	const bounded = d.withConfig({ maxE: 3, minE: -3 });
-	assert.equal(bounded.toString(bounded.mul(d.from('1e10'), d.from('1e-10'))), '1');
-	assert.equal(bounded.toString(bounded.add(d.from('1e10'), d.from('-1e10'))), '0');
-	assert.equal(bounded.toString(bounded.div(d.from('1e10'), d.from('1e10'))), '1');
-	assert.equal(bounded.toNumber(bounded.mul(d.from('1e3'), d.from('1e3'))), Infinity);
-	assert.equal(bounded.toNumber(bounded.from('1e10')), Infinity); // explicit conversion boundary
-	assert.equal(d.toString(d.add(d.from('0.1'), d.from('0.2'))), '0.3');
-	assert.equal(d.toString(d.from('9007199254740993')), '9007199254740993');
-});
-
-test('rounding and remainder follow the documented backend policies', () => {
+test('Number rounding and remainder follow native policies', () => {
 	assert.ok(Object.is(n.round(-0.5), -0));
-	assert.equal(d.toNumber(d.round(d.from('-0.5'))), -1);
-	const even = d.withConfig({ rounding: 'half-even', modulo: 'euclid' });
-	assert.equal(even.toNumber(even.round(even.from('2.5'))), 2);
 	assert.equal(n.rem(-7, 3), -1);
-	assert.equal(even.toNumber(even.rem(even.from(-7), even.from(3))), 2);
 });

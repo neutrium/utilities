@@ -8,10 +8,6 @@ export interface NumericAdapter<T>
 	readonly id: string;
 	/** Available capability tier. */
 	readonly tier: 'core' | 'arithmetic' | 'scientific';
-	/** Stable backend compatibility identity, shared across tiers and configurations. */
-	readonly identity: object;
-	/** Immutable settings; use this identity to scope cached numerical results. */
-	readonly config: Readonly<object>;
 	/** Recognize backend-native values without coercion. */
 	isValue(value: unknown): value is T;
 	/** Parse a strict decimal literal or convert a native scalar. No arbitrary object coercion. */
@@ -28,4 +24,6 @@ export interface NumericAdapter<T>
 	toNumber(value: T): number;
 	/** Numeric text preserving negative zero; formatting is backend-specific. */
 	toString(value: T): string;
+	/** Size of the scalar in bytes. */
+	toBytes(value: T): number;
 }

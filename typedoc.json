@@ -7,13 +7,15 @@
     "./src/configuration/index.ts",
     "./src/integer/index.ts",
     "./src/numeric/index.ts",
+    "./src/numeric/BigIntAdapter.ts",
     "./src/decimal/DecimalCoreAdapter.ts",
     "./src/decimal/DecimalArithmeticAdapter.ts",
     "./src/decimal/DecimalScientificAdapter.ts",
     "./src/async/index.ts",
-    "./src/numeric/number.ts",
-    "./src/numeric/float.ts",
-    "./src/immutable/index.ts"
+    "./src/numeric/NumberAdapter.ts",
+    "./src/immutable/index.ts",
+    "./src/numeric/factors.ts",
+    "./src/numeric/rational.ts"
   ],
   "projectDocuments": [
     "./guides/*.md"

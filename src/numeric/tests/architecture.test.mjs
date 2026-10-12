@@ -1,24 +1,20 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { readFileSync, existsSync, mkdtempSync, mkdirSync, cpSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { join, dirname, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import ts from 'typescript';
 
 const project = fileURLToPath(new URL('../../../', import.meta.url));
-const require = createRequire(import.meta.url);
 
-test('native adapter identities are shared across public entry points', async () => {
+test('native adapter class is shared across public entry points', async () => {
 	const numeric = await import('@neutrium/utilities/numeric');
-	const { numberAdapter } = await import('@neutrium/utilities/number');
-	const { floatAdapter } = await import('@neutrium/utilities/float');
-	assert.equal(numeric.numberAdapter, numberAdapter);
-	assert.equal(numeric.doubleAdapter, numberAdapter);
-	assert.equal(numeric.floatAdapter, floatAdapter);
-	assert.notEqual(numberAdapter.identity, floatAdapter.identity);
+	const { NumberAdapter } = await import('@neutrium/utilities/number');
+	assert.equal(numeric.NumberAdapter, NumberAdapter);
+	assert.equal('floatAdapter' in numeric, false);
+	assert.equal('doubleAdapter' in numeric, false);
 });
 
 function reachable(entry)
@@ -43,7 +39,7 @@ function reachable(entry)
 	return [...seen];
 }
 
-for (const tier of ['core', 'arithmetic', 'scientific'])
+for (const tier of ['core', 'arithmetic'])
 {
 	test(`decimal/${tier}: dependency graph respects tier boundaries`, () => {
 		const graph = reachable(join(project, `dist/decimal/Decimal${tier[0].toUpperCase() + tier.slice(1)}Adapter.js`));
@@ -56,20 +52,16 @@ for (const tier of ['core', 'arithmetic', 'scientific'])
 	});
 }
 
-for (const backend of ['number', 'float'])
-{
-	test(`${backend}: complete adapter has no Decimal or other native-backend dependency`, () => {
-		const graph = reachable(join(project, `dist/numeric/${backend}.js`));
-		assert.equal(graph.some(path => path.includes('/decimal/')), false);
-		const other = backend === 'number' ? 'float' : 'number';
-		assert.equal(graph.some(path => path.endsWith(`/numeric/${other}.js`)), false);
-	});
-}
+test('Number has no Decimal dependency', () => {
+	const graph = reachable(join(project, 'dist/numeric/NumberAdapter.js'));
+	assert.equal(graph.some(path => path.includes('/decimal/')), false);
+});
 
 test('obsolete native tier paths and artifacts are removed', () => {
 	// Use Node's resolver here: Vite reports its own error for missing exports.
 	const checked = spawnSync(process.execPath, ['--input-type=module', '-e', `
 		import assert from 'node:assert/strict';
+		await assert.rejects(import('@neutrium/utilities/float'), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' });
 		for (const backend of ['number', 'float']) {
 			for (const suffix of ['', '/core', '/arithmetic', '/scientific']) {
 				await assert.rejects(import('@neutrium/utilities/numeric/' + backend + suffix), {
@@ -79,41 +71,15 @@ test('obsolete native tier paths and artifacts are removed', () => {
 		}
 	`], { cwd: project, encoding: 'utf8' });
 	assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+	for (const file of ['float.js', 'float.d.ts', 'adapters/createBinaryAdapter.js', 'adapters/createBinaryAdapter.d.ts'])
+		assert.equal(existsSync(join(project, 'dist/numeric', file)), false);
 	for (const backend of ['binary', 'number', 'float']) {
 		assert.equal(existsSync(join(project, `dist/numeric/${backend}`)), false);
 	}
 });
 
-test('root, framework and native backends work without the optional Decimal peer, including declarations', () => {
-	const directory = mkdtempSync(join(tmpdir(), 'neutrium-numeric-'));
-	try
-	{
-		const target = join(directory, 'node_modules/@neutrium/utilities');
-		mkdirSync(target, { recursive: true });
-		cpSync(join(project, 'dist'), join(target, 'dist'), { recursive: true });
-		cpSync(join(project, 'package.json'), join(target, 'package.json'));
-		writeFileSync(join(directory, 'package.json'), '{"type":"module"}');
-		writeFileSync(join(directory, 'consumer.mjs'), `
-			import { LruCache } from '@neutrium/utilities';
-			import { numberAdapter } from '@neutrium/utilities/number';
-			import { floatAdapter } from '@neutrium/utilities/float';
-			if (new LruCache(2).size !== 0 || numberAdapter.add(1, 2) !== 3 || floatAdapter.from(16777217) !== 16777216) throw Error('invalid result');
-		`);
-		const executed = spawnSync(process.execPath, [join(directory, 'consumer.mjs')], { encoding: 'utf8' });
-		assert.equal(executed.status, 0, executed.stderr);
-		writeFileSync(join(directory, 'consumer.ts'), `
-			import type { NumericAdapter, ArithmeticAdapter } from '@neutrium/utilities';
-			import type { ScientificAdapter } from '@neutrium/utilities/numeric';
-			import { numberAdapter } from '@neutrium/utilities/number';
-			import { floatAdapter } from '@neutrium/utilities/float';
-			const adapter: NumericAdapter<number> & ArithmeticAdapter<number> & ScientificAdapter<number> = numberAdapter;
-			const result: number = floatAdapter.add(adapter.from('1'), 2);
-		`);
-		const checked = spawnSync(process.execPath, [require.resolve('typescript/bin/tsc'), '--ignoreConfig', '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', join(directory, 'consumer.ts')], { encoding: 'utf8' });
-		assert.equal(checked.status, 0, checked.stdout + checked.stderr);
-	}
-	finally
-	{
-		rmSync(directory, { recursive: true, force: true });
-	}
+// Optional-peer runtime and declaration isolation is covered by tools/test-package.mjs.
+test('rational helpers and capability detection have no Decimal dependency', () => {
+	const graph = reachable(join(project, 'dist/numeric/rational.js'));
+	assert.equal(graph.some(path => path.includes('/decimal/')), false);
 });

@@ -2,8 +2,6 @@ import { Decimal, type DecimalConstructor, type DecimalConfigInput, type Decimal
 import type { NumericAdapter } from '../numeric/adapters/NumericAdapter.js';
 import { literal } from '../numeric/literal.js';
 
-const identity = Object.freeze({ backend: '@neutrium/decimal' });
-
 function lock(Constructor: DecimalConstructor): void
 {
 	// Block changes to this context without breaking Decimal's public clone API:
@@ -48,30 +46,44 @@ export function decimalContext<C extends DecimalConstructor>(Source: C, options:
 	lock(Work);
 	type T = C['prototype'];
 	const construct = (Constructor: C, value: DecimalValue): T => new Constructor(value) as T;
-	const operand = (value: T): T => {
+	const inspect = (value: T): T => {
 		if (!(value instanceof Decimal))
 		{
 			throw new TypeError('Expected a Decimal operand');
 		}
 
-		return construct(Work, value);
+		return value;
 	};
+
+	const operand = (value: T): T => construct(Work, inspect(value));
 	const result = (value: DecimalValue): T => {
 		const owned = construct(Output, value);
 		Object.freeze(owned);
 		return owned;
 	};
 	const core: NumericAdapter<T> = {
-		id: 'decimal', tier: 'core', identity, config: Output.config,
+		id: 'decimal',
+		tier: 'core',
 		isValue: (value: unknown): value is T => value instanceof Source,
 		from: (value: unknown) => result(value instanceof Decimal ? value : literal(value)),
-		compare: (a: T, b: T) => operand(a).cmp(operand(b)),
-		isFinite: (value: T) => operand(value).isFinite(),
-		isNaN: (value: T) => operand(value).isNaN(),
-		isInteger: (value: T) => operand(value).isInt(),
-		toNumber: (value: T) => operand(value).toNumber(),
+		// These Decimal operations inspect stored state without a calculation context.
+		// Call native methods to preserve the previous isolation from operand overrides.
+		compare: (a: T, b: T) => Decimal.prototype.cmp.call(inspect(a), inspect(b)),
+		isFinite: (value: T) => Decimal.prototype.isFinite.call(inspect(value)),
+		isNaN: (value: T) => Decimal.prototype.isNaN.call(inspect(value)),
+		isInteger: (value: T) => Decimal.prototype.isInt.call(inspect(value)),
+		toNumber: (value: T) => Decimal.prototype.toNumber.call(inspect(value)),
 		toString: (value: T) => operand(value).toValue(),
+		toBytes(value: T): number
+		{
+			if (!(value instanceof Decimal))
+			{
+				throw new TypeError('Expected a Decimal operand');
+			}
+			return value.toBytes();
+		},
+
 	};
 
-	return { core, operand, result, Output, Work };
+	return Object.freeze({ core: Object.freeze(core), operand, result, Output, Work, Source });
 }

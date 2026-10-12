@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@neutrium/decimal@2.3.0'

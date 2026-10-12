@@ -24,7 +24,6 @@
 		"./src/decimal/DecimalCoreAdapter.ts",
 		"./src/decimal/DecimalArithmeticAdapter.ts",
 		"./src/decimal/DecimalScientificAdapter.ts",
-		"./src/numeric/number.ts",
-		"./src/numeric/float.ts"
+		"./src/numeric/NumberAdapter.ts"
 	]
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@neutrium/utilities",
-	"version": "3.1.0",
+	"version": "4.0.0",
 	"type": "module",
 	"sideEffects": false,
 	"types": "./dist/index.d.ts",
@@ -47,6 +47,24 @@
 			"default": "./dist/numeric/adapters/NumericAdapter.js"
 		}
 		},
+		"./numeric/helpers": {
+			"import": {
+				"types": "./dist/numeric/helpers.d.ts",
+				"default": "./dist/numeric/helpers.js"
+			}
+		},
+		"./numeric/factors": {
+			"import": {
+				"types": "./dist/numeric/factors.d.ts",
+				"default": "./dist/numeric/factors.js"
+			}
+		},
+		"./numeric/rational": {
+			"import": {
+				"types": "./dist/numeric/rational.d.ts",
+				"default": "./dist/numeric/rational.js"
+			}
+		},
 		"./numeric/arithmetic": {
 		"import": {
 			"types": "./dist/numeric/adapters/ArithmeticAdapter.d.ts",
@@ -89,16 +107,16 @@
 			"default": "./dist/async/index.js"
 		}
 		},
+		"./bigint": {
+			"import": {
+				"types": "./dist/numeric/BigIntAdapter.d.ts",
+				"default": "./dist/numeric/BigIntAdapter.js"
+			}
+		},
 		"./number": {
 		"import": {
-			"types": "./dist/numeric/number.d.ts",
-			"default": "./dist/numeric/number.js"
-		}
-		},
-		"./float": {
-		"import": {
-			"types": "./dist/numeric/float.d.ts",
-			"default": "./dist/numeric/float.js"
+			"types": "./dist/numeric/NumberAdapter.d.ts",
+			"default": "./dist/numeric/NumberAdapter.js"
 		}
 		},
 		"./immutable": {
@@ -153,7 +171,7 @@
 		"test:types": "pnpm run build && vitest run --typecheck.only"
 	},
 	"devDependencies": {
-		"@neutrium/decimal": "2.2.0",
+		"@neutrium/decimal": "2.3.0",
 		"@types/node": "^24.19.0",
 		"typedoc": "^0.28.20",
 		"typescript": "6.0.3",
@@ -161,7 +179,7 @@
 		"vitest": "5.0.3"
 	},
 	"peerDependencies": {
-		"@neutrium/decimal": "^2.2.0"
+		"@neutrium/decimal": "^2.3.0"
 	},
 	"peerDependenciesMeta": {
 		"@neutrium/decimal": {

@@ -73,8 +73,12 @@ try
 		run(process.execPath, ['consumer.mjs'], consumer);
 		const integration = readFileSync(join(project, 'tools/fixtures/consumer.ts'), 'utf8');
 		const decimalIntegration = withDecimal ? `
-			import { createDecimalAdapter } from '@neutrium/utilities/decimal';
-			const decimal = createDecimalAdapter({ precision: 40 });
+			import { DecimalScientificAdapter } from '@neutrium/utilities/decimal';
+			const decimal = new DecimalScientificAdapter({ precision: 40 });
+            check(decimal instanceof DecimalScientificAdapter);
+            check(decimal.withConfig({ precision: 50 }) instanceof DecimalScientificAdapter);
+            check(decimal.toBytes(decimal.from('12345678')) === 40);
+            check(decimal.compareRationalSum([{ numerator: -1n, denominator: 3n, exponent: -100000000000000000000n }]) === -1);
 			check(decimal.toString(mean(decimal, decimal.from('0.1'), decimal.from('0.2'))) === '0.15');
 		` : '';
 		writeFileSync(join(consumer, 'consumer.ts'), selected.map((entry, index) =>

@@ -1,4 +1,4 @@
-import { assertNonNegativeSafeInteger, assertPlainRecord } from '../validation/assertions.js';
+import { assertKnownKeys, assertNonNegativeSafeInteger } from '../validation/assertions.js';
 import { resolveConfig } from '../configuration/index.js';
 import { WeightedLruCache } from './LruCache.js';
 
@@ -13,6 +13,15 @@ export interface CacheConfigInput
 
 /** Validated, immutable configuration with both limits specified. */
 export type CacheConfig = Readonly<Required<CacheConfigInput>>;
+
+/** Optional diagnostic context and reuse of validated immutable cache limits. */
+export interface CacheConfigOptions
+{
+	/** Diagnostic label for the configuration and its fields. Defaults to cache. */
+	name?: string;
+	/** Reuse a validated input, or the validated parent when input is undefined. Defaults to false. */
+	reuse?: boolean;
+}
 
 /** Immutable snapshot of retained usage and configured byte and entry limits. */
 export interface BudgetCacheStats extends CacheConfig
@@ -36,24 +45,60 @@ export interface CachePolicy<V>
 	accept?(key: string, value: V): boolean;
 	/** Optional ownership copy, called only after admission. Its size must match measure. */
 	detach?(value: V): V;
+	/** Optional key ownership copy after admission, before detach. Must return the same string value. */
+	detachKey?(key: string): string;
 	/** Estimated per-entry overhead; defaults to 256 bytes. */
 	entryOverheadBytes?: number;
 }
 
 /** Frozen defaults: at most 1024 entries and 4 MiB of estimated retained bytes. */
 export const DEFAULT_CACHE_CONFIG: CacheConfig = Object.freeze({ maxEntries: 1024, maxBytes: 4 * 1024 * 1024 });
+const resolvedConfigs = new WeakSet<object>([DEFAULT_CACHE_CONFIG]);
 
-/** Validate and copy limits. Undefined fields inherit defaults; unknown keys are rejected. */
-export function cacheConfig(input: CacheConfigInput = {}, parent: CacheConfig = DEFAULT_CACHE_CONFIG): CacheConfig
+/**
+ * Validate and freeze limits; undefined fields inherit parent values. Unknown keys are rejected.
+ * Returns a fresh snapshot unless reuse is enabled and input is already validated or undefined.
+ * Arbitrary frozen objects are still validated and copied. Explicit partial overrides stay distinct.
+ */
+export function cacheConfig(input?: CacheConfigInput, parent: CacheConfig = DEFAULT_CACHE_CONFIG, options: CacheConfigOptions = {}): CacheConfig
 {
-	return resolveConfig({ maxEntries: parent.maxEntries, maxBytes: parent.maxBytes }, input, validateCacheConfig, 'cache');
-}
+	assertKnownKeys(options, ['name', 'reuse'], 'cache configuration options');
+	const { name = 'cache', reuse = false } = options;
+	if (typeof name !== 'string')
+	{
+		throw new TypeError('Cache configuration name must be a string');
+	}
 
-function validateCacheConfig(value: unknown): asserts value is CacheConfig
-{
-	assertPlainRecord(value, 'cache');
-	assertNonNegativeSafeInteger(value.maxEntries, 'maxEntries');
-	assertNonNegativeSafeInteger(value.maxBytes, 'maxBytes');
+	if (typeof reuse !== 'boolean')
+	{
+		throw new TypeError('Cache configuration reuse must be a boolean');
+	}
+
+	const validate = (value: unknown): asserts value is CacheConfig => {
+		assertKnownKeys(value, ['maxEntries', 'maxBytes'], name);
+		const limits = value as CacheConfig;
+		const prefix = options.name === undefined ? '' : name + ' ';
+		assertNonNegativeSafeInteger(limits.maxEntries, prefix + 'maxEntries');
+		assertNonNegativeSafeInteger(limits.maxBytes, prefix + 'maxBytes');
+	};
+	// Never trust a caller-owned object merely because it is frozen or typed as CacheConfig.
+	const defaults = resolvedConfigs.has(parent) ? parent : resolveConfig(parent, undefined, validate, name + ' defaults');
+	resolvedConfigs.add(defaults);
+
+	if (reuse && input === undefined)
+	{
+		return defaults;
+	}
+
+	if (reuse && resolvedConfigs.has(input as object))
+	{
+		return input as CacheConfig;
+	}
+
+	const result = resolveConfig(defaults, input, validate, name);
+	resolvedConfigs.add(result);
+
+	return result;
 }
 
 /**
@@ -72,15 +117,15 @@ export class BudgetCache<V>
 	/** Validate limits and policy callbacks; allocate entry storage lazily on admission. */
 	constructor(config: CacheConfigInput, policy: CachePolicy<V>)
 	{
-		this.config = cacheConfig(config);
-		const { measure, accept, detach, entryOverheadBytes } = policy;
+		this.config = cacheConfig(config, DEFAULT_CACHE_CONFIG, { reuse: true });
+		const { measure, accept, detach, detachKey, entryOverheadBytes } = policy;
 
 		if (typeof measure !== 'function')
 		{
 			throw new TypeError('measure must be a function');
 		}
 
-		for (const [name, callback] of [['accept', accept], ['detach', detach]] as const)
+		for (const [name, callback] of [['accept', accept], ['detach', detach], ['detachKey', detachKey]] as const)
 		{
 			if (callback !== undefined && typeof callback !== 'function')
 			{
@@ -92,6 +137,7 @@ export class BudgetCache<V>
 			measure: measure.bind(policy),
 			accept: accept?.bind(policy),
 			detach: detach?.bind(policy),
+			detachKey: detachKey?.bind(policy),
 		});
 
 		this.overhead = entryOverheadBytes === undefined ? 256 : entryOverheadBytes;
@@ -193,6 +239,13 @@ export class BudgetCache<V>
 			return false;
 		}
 
+		const ownedKey = this.policy.detachKey ? this.policy.detachKey(key) : key;
+
+		if (ownedKey !== key)
+		{
+			throw new TypeError('detachKey must return the same string value');
+		}
+
 		const owned = this.policy.detach ? this.policy.detach(value) : value;
 
 		this.entries ??= new WeightedLruCache({
@@ -201,6 +254,6 @@ export class BudgetCache<V>
 			weigh: (_key, entry) => entry.bytes
 		});
 
-		return this.entries.trySet(key, { value: owned, bytes: keyBytes + payloadBytes });
+		return this.entries.trySet(ownedKey, { value: owned, bytes: keyBytes + payloadBytes });
 	}
 }
