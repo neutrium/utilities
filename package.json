@@ -168,7 +168,9 @@
 		"verify": "pnpm test && pnpm run test:package:built && pnpm run docs",
 		"prepack": "pnpm run build",
 		"prepublishOnly": "pnpm run verify",
-		"test:types": "pnpm run build && vitest run --typecheck.only"
+		"test:types": "pnpm run build && vitest run --typecheck.only",
+		"benchmark": "pnpm run build && pnpm run benchmark:built",
+		"benchmark:built": "vitest bench --run --config vitest.benchmark.config.js"
 	},
 	"devDependencies": {
 		"@neutrium/decimal": "2.3.0",

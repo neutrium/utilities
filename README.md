@@ -36,6 +36,9 @@ pnpm install
 pnpm run verify
 ```
 
+Run the numeric adapter dispatch benchmark with `pnpm run benchmark`. See the
+[benchmark guide](./guides/benchmarks.md) for measurement settings and interpretation.
+
 ## Documentation
 
 The [API documentation and feature guides](https://neutrium.github.io/utilities/) are generated with TypeDoc. Build them locally with `pnpm run docs`, then open `docs/index.html`. Generated files are ignored by Git and excluded from the npm package. `pnpm run verify` runs the package tests and builds the documentation, treating
